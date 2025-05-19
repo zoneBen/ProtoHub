@@ -1,6 +1,6 @@
 package core
 
-import "ProtoHub/modu"
+import "github.com/zoneBen/ProtoHub/modu"
 
 type Protocol interface {
 	GenerateCommands(dev *modu.EParser) (map[string][]byte, error)

@@ -1,10 +1,10 @@
 package parser
 
 import (
-	"ProtoHub/modu"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/zoneBen/ProtoHub/modu"
 	"log"
 	"regexp"
 	"strconv"

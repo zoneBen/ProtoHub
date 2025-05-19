@@ -1,6 +1,6 @@
 package parser
 
-import "ProtoHub/modu"
+import "github.com/zoneBen/ProtoHub/modu"
 
 type Parser interface {
 	Extract(data []byte, dev *modu.EParser, addr modu.EAddr) ([]byte, error)

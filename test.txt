@@ -1,13 +1,13 @@
 package main
 
 import (
-	"ProtoHub/core"
-	"ProtoHub/excel"
-	"ProtoHub/loader"
-	"ProtoHub/protocols"
-	"ProtoHub/transport"
 	"flag"
 	"fmt"
+	"github.com/zoneBen/ProtoHub/core"
+	"github.com/zoneBen/ProtoHub/excel"
+	"github.com/zoneBen/ProtoHub/loader"
+	"github.com/zoneBen/ProtoHub/protocols"
+	"github.com/zoneBen/ProtoHub/transport"
 	"log"
 	"strings"
 	"time"
@@ -63,7 +63,7 @@ func main() {
 			ReadTimeout: 1000}
 		clent = transport.NewSerialTransport(&conf)
 	} else {
-		var conf = transport.TCPConfig{controller, time.Duration(1000) * time.Millisecond}
+		var conf = transport.TCPConfig{Address: controller, Timeout: time.Duration(1000) * time.Millisecond}
 		clent = transport.NewTCPTransport(&conf)
 	}
 
@@ -71,13 +71,13 @@ func main() {
 	time.Sleep(1 * time.Second)
 	for {
 		for cmdKey, c := range cmds {
-			fmt.Printf("第%d命令 : %s bytes:%02X\n", index, strings.Replace(string(c), "\r", "", -1), c)
+			fmt.Printf("第%d命令: %s bytes: %02X\n", index, strings.Replace(string(c), "\r", "", -1), c)
 			index++
 			buf, err := protocol.Send(clent, c, &dev)
 			if err == nil {
-				fmt.Printf(" ---> 收到数据%s bytes:%02X\n", strings.Replace(string(buf), "\r", "", -1), buf)
+				fmt.Printf(" ---> 收到数据: %s bytes: %02X\n", strings.Replace(string(buf), "\r", "", -1), buf)
 			} else {
-				fmt.Println(err)
+				fmt.Println("接收错误", err)
 			}
 			if len(buf) > 0 {
 				addrs := protocol.GetCommandAddrs(&dev, cmdKey)

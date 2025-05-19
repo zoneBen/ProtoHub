@@ -1,12 +1,12 @@
 package excel
 
 import (
-	"ProtoHub/internal/pinyin"
-	"ProtoHub/modu"
 	"errors"
 	"fmt"
 	"github.com/wxnacy/wgo/arrays"
 	excelize "github.com/xuri/excelize/v2"
+	"github.com/zoneBen/ProtoHub/internal/pinyin"
+	"github.com/zoneBen/ProtoHub/modu"
 	"strconv"
 	"strings"
 )

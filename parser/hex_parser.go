@@ -1,9 +1,9 @@
 package parser
 
 import (
-	"ProtoHub/modu"
 	"encoding/hex"
 	"errors"
+	"github.com/zoneBen/ProtoHub/modu"
 	"strconv"
 )
 

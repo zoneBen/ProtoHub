@@ -1,10 +1,10 @@
 package protocols
 
 import (
-	"ProtoHub/core"
-	"ProtoHub/modu"
-	"ProtoHub/parser"
 	"fmt"
+	"github.com/zoneBen/ProtoHub/core"
+	"github.com/zoneBen/ProtoHub/modu"
+	"github.com/zoneBen/ProtoHub/parser"
 	"log"
 	"strings"
 	"time"

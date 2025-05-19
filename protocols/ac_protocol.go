@@ -1,13 +1,13 @@
 package protocols
 
 import (
-	"ProtoHub/core"
-	"ProtoHub/modu"
-	"ProtoHub/parser"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/zoneBen/ProtoHub/core"
+	"github.com/zoneBen/ProtoHub/modu"
+	"github.com/zoneBen/ProtoHub/parser"
 	"log"
 	"time"
 )

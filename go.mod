@@ -1,4 +1,4 @@
-module ProtoHub
+module github.com/zoneBen/ProtoHub
 
 go 1.23.2
 

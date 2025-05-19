@@ -1,6 +1,6 @@
 package loader
 
-import "ProtoHub/modu"
+import "github.com/zoneBen/ProtoHub/modu"
 
 type Loader interface {
 	Load(path string) (modu.EParser, error)

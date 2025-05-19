@@ -1,8 +1,8 @@
 package loader
 
 import (
-	"ProtoHub/excel"
-	"ProtoHub/modu"
+	"github.com/zoneBen/ProtoHub/excel"
+	"github.com/zoneBen/ProtoHub/modu"
 )
 
 type ExcelLoader struct {
