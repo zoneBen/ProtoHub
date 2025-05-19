@@ -6,20 +6,36 @@ import (
 	"ProtoHub/parser"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 )
 
 type SimpleTextProtocol struct{}
 
+func replacementSpecialCharacters(oldVal string) (val string) {
+	val = strings.Replace(oldVal, "空格", " ", -1)
+	val = strings.Replace(oldVal, "\\r", "\r", -1)
+	val = strings.Replace(val, "\\n", "\n", -1)
+	return
+}
+
 // GenerateCommands 生成命令键与内容的映射
 func (p *SimpleTextProtocol) GenerateCommands(dev *modu.EParser) (map[string][]byte, error) {
 	commands := make(map[string][]byte)
+	var sendPre = replacementSpecialCharacters(dev.Dev.SendPre)
+	var sendSuf = replacementSpecialCharacters(dev.Dev.SendSuf)
 	for _, addr := range dev.Addrs {
+		if addr.SendPre != "" {
+			sendPre = replacementSpecialCharacters(addr.SendPre)
+		}
+		if addr.SendSuf != "" {
+			sendSuf = replacementSpecialCharacters(addr.SendSuf)
+		}
 		cmdKey := p.GenerateKey(dev, addr)
-		cmd := fmt.Sprintf("%s%s%s", addr.CID1, addr.Command, addr.CommandExtra)
+		cmd := fmt.Sprintf("%s%s%s%s%s", sendPre, addr.CID1, addr.Command, addr.CommandExtra, sendSuf)
 		commands[cmdKey] = []byte(cmd)
 	}
-	return nil, nil
+	return commands, nil
 }
 
 func (p *SimpleTextProtocol) GenerateKey(dev *modu.EParser, addr modu.EAddr) string {
@@ -30,6 +46,7 @@ func (p *SimpleTextProtocol) GenerateKey(dev *modu.EParser, addr modu.EAddr) str
 func (p *SimpleTextProtocol) Send(transport core.Transport, sendBuf []byte, dev *modu.EParser) ([]byte, error) {
 	err := transport.Connect()
 	if err != nil {
+		log.Println("SimpleTextProtocol Send err", err)
 		return nil, err
 	}
 	defer transport.Close()
@@ -37,8 +54,37 @@ func (p *SimpleTextProtocol) Send(transport core.Transport, sendBuf []byte, dev 
 	if err != nil {
 		return nil, err
 	}
-	time.Sleep(100 * time.Millisecond)
-	return transport.Read()
+	var endFlag byte
+	endFlag = 0x0D
+	timeout := 1 * time.Second
+	timeoutChan := time.After(timeout)
+	resultChan := make(chan []byte)
+	errChan := make(chan error)
+	go func() {
+		var received []byte
+		for {
+			// 读取数据
+			data, err := transport.Read()
+			if err != nil {
+				errChan <- err
+				return
+			}
+			received = append(received, data...)
+			if len(received) > 0 && (received[len(received)-1] == endFlag || received[len(received)-1] == 0x0A) {
+				resultChan <- received
+				return
+			}
+		}
+	}()
+
+	select {
+	case <-timeoutChan:
+		return nil, fmt.Errorf("读取超时，超时时间：%v", timeout)
+	case result := <-resultChan:
+		return result, nil
+	case err := <-errChan:
+		return nil, err
+	}
 }
 
 // GetCommandAddrs 获取命令对应的测点

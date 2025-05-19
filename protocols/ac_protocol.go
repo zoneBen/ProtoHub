@@ -12,7 +12,10 @@ import (
 	"time"
 )
 
-type ACProtocol struct{}
+type ACProtocol struct {
+	SOI byte
+	EOI byte
+}
 
 // GenerateCommands 生成命令键与内容的映射
 func (p *ACProtocol) GenerateCommands(dev *modu.EParser) (map[string][]byte, error) {
@@ -46,7 +49,7 @@ func (p *ACProtocol) GenerateCommands(dev *modu.EParser) (map[string][]byte, err
 			cid1 = devCid1
 		}
 		ext, err := getBytes(addr.CommandExtra)
-		frame, err := buildFrame(0x7E, devVer, devAdr, cid1, cid2, ext, 0x0D)
+		frame, err := buildFrame(p.SOI, devVer, devAdr, cid1, cid2, ext, p.EOI)
 		if err != nil {
 			return nil, err
 		}
@@ -135,6 +138,7 @@ func Uint16ToBytes(n uint16, littleEndian bool) []byte {
 func (p *ACProtocol) Send(transport core.Transport, sendBuf []byte, dev *modu.EParser) ([]byte, error) {
 	err := transport.Connect()
 	if err != nil {
+		log.Println("ACProtocol Send err", err)
 		return nil, err
 	}
 	defer transport.Close()
@@ -142,8 +146,35 @@ func (p *ACProtocol) Send(transport core.Transport, sendBuf []byte, dev *modu.EP
 	if err != nil {
 		return nil, err
 	}
-	time.Sleep(100 * time.Millisecond)
-	return transport.Read()
+	timeout := 1 * time.Second
+	timeoutChan := time.After(timeout)
+	resultChan := make(chan []byte)
+	errChan := make(chan error)
+	go func() {
+		var received []byte
+		for {
+			// 读取数据
+			data, err := transport.Read()
+			if err != nil {
+				errChan <- err
+				return
+			}
+			received = append(received, data...)
+			if len(received) > 0 && received[len(received)-1] == p.EOI {
+				resultChan <- received
+				return
+			}
+		}
+	}()
+
+	select {
+	case <-timeoutChan:
+		return nil, fmt.Errorf("读取超时，超时时间：%v", timeout)
+	case result := <-resultChan:
+		return result, nil
+	case err := <-errChan:
+		return nil, err
+	}
 }
 
 // GetCommandAddrs 获取命令对应的测点

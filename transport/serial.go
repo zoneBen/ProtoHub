@@ -26,9 +26,6 @@ func NewSerialTransport(config *SerialConfig) *SerialTransport {
 }
 
 func (s *SerialTransport) Connect() error {
-	if s.port != nil {
-		return errors.New("serial port already connected")
-	}
 	c := &serial.Config{
 		Name:        s.config.PortName,
 		Baud:        s.config.BaudRate,
