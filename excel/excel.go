@@ -379,7 +379,7 @@ func checkMainInfo(parser *modu.EParser) (err error) {
 	if arrays.ContainsString([]string{"Q1", "电总"}, parser.Dev.TransmissionMode) == -1 {
 		return errors.New("通讯协议错误，未设置Q1或电总")
 	}
-	if parser.Dev.TransmissionMode == "Q1" {
+	if parser.Dev.TransmissionMode == "Q1" || parser.Dev.TransmissionMode == "Q1分组" {
 		if parser.Dev.RevPre == "" {
 			return errors.New("接收前缀未填写")
 		}
@@ -400,12 +400,6 @@ func checkMainInfo(parser *modu.EParser) (err error) {
 		}
 		if parser.Dev.CrcNum == 0 {
 			return errors.New("CRC数未填写")
-		}
-		if parser.Dev.SendPre == "" {
-			return errors.New("发送前缀未填写")
-		}
-		if parser.Dev.SendSuf == "" {
-			return errors.New("发送后缀未填写")
 		}
 		if parser.Dev.Version == "" {
 			return errors.New("版本号 未填写")
@@ -434,7 +428,7 @@ func checkAddrs(parser *modu.EParser) (err error) {
 		}
 
 		if parser.Dev.TransmissionMode == "电总" {
-			err = checkHAddr(&v)
+			err = checkHAddr(&v, parser)
 			if err != nil {
 				return
 			}
@@ -460,17 +454,23 @@ func checkQAddr(addr *modu.EAddr) (err error) {
 	return
 }
 
-func checkHAddr(addr *modu.EAddr) (err error) {
+func checkHAddr(addr *modu.EAddr, parser *modu.EParser) (err error) {
+
 	if addr.Length < 1 {
 		return errors.New(fmt.Sprintf("%s 数据长度不正确", addr.MetricName))
 	}
+
 	if addr.ByteOrder == "" {
 		return errors.New(fmt.Sprintf("%s 字节排序未填写", addr.MetricName))
 	}
 	if addr.DataType == "" {
 		return errors.New(fmt.Sprintf("%s 数据类型未填写", addr.MetricName))
 	}
-	if addr.Length == 1 && addr.DataType != "BIN2INT" {
+	dataLength := addr.Length
+	if parser.Dev.TransmissionMode == "电总" {
+		dataLength = addr.Length / 2
+	}
+	if dataLength == 1 && addr.DataType != "BIN2INT" {
 		if arrays.ContainsString([]string{"AB", "BA"}, addr.ByteOrder) == -1 {
 			return errors.New(fmt.Sprintf("%s 数据长度为1时字节序只能为AB或BA", addr.MetricName))
 		}
@@ -478,16 +478,16 @@ func checkHAddr(addr *modu.EAddr) (err error) {
 			return errors.New(fmt.Sprintf("%s 数据长度为1时数据类型只能为 \"INT16\", \"UINT16\",\"FIXED\", \"UFIXED\"", addr.MetricName))
 		}
 	}
-	if addr.Length == 2 && addr.DataType != "BIN2INT" {
-		if arrays.ContainsString([]string{"ABCD", "DCBA", "BADC", "CDAB"}, addr.ByteOrder) == -1 {
+	if dataLength == 2 && addr.DataType != "BIN2INT" {
+		if arrays.ContainsString([]string{"AB", "BA", "ABCD", "DCBA", "BADC", "CDAB"}, addr.ByteOrder) == -1 {
 			return errors.New(fmt.Sprintf("%s 数据长度为2时字节序只能为\"ABCD\", \"DCBA\", \"BADC\", \"CDAB\"", addr.MetricName))
 		}
 		if arrays.ContainsString([]string{"INT32", "UINT32", "FLOAT32", "FLOAT32-IEEE"}, addr.DataType) == -1 {
 			return errors.New(fmt.Sprintf("%s 数据长度为2时数据类型只能为 \"INT32\", \"UINT32\", \"FLOAT32\", \"FLOAT32-IEEE\"", addr.MetricName))
 		}
 	}
-	if addr.Length == 4 && addr.DataType != "BIN2INT" {
-		if arrays.ContainsString([]string{"ABCDEFGH", "GHEFCDAB", "BADCFEHG", "HGFEDCBA"}, addr.ByteOrder) == -1 {
+	if dataLength == 4 && addr.DataType != "BIN2INT" {
+		if arrays.ContainsString([]string{"AB", "BA", "ABCDEFGH", "GHEFCDAB", "BADCFEHG", "HGFEDCBA"}, addr.ByteOrder) == -1 {
 			return errors.New(fmt.Sprintf("%s 数据长度为4时字节序只能为\"ABCDEFGH\", \"GHEFCDAB\", \"BADCFEHG\", \"HGFEDCBA\"", addr.MetricName))
 		}
 		if arrays.ContainsString([]string{"INT64", "UINT64", "FLOAT64-IEEE"}, addr.DataType) == -1 {
