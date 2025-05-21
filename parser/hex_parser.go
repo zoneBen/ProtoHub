@@ -30,7 +30,7 @@ func (p *HexParser) Parse(buf []byte, dev *modu.EParser, addr modu.EAddr) (modu.
 	var v float64
 	if addr.DataType == "BIN2INT" {
 		if addr.CutLength < 1 {
-			err = errors.New("BIN2INT长度不足")
+			err = errors.New(addr.MetricName + "BIN2INT长度不足")
 		}
 		tmps := BytesToBinaryString(bytes)
 		st := len(tmps) - addr.CutOffset
@@ -38,7 +38,7 @@ func (p *HexParser) Parse(buf []byte, dev *modu.EParser, addr modu.EAddr) (modu.
 		ti, err1 := strconv.ParseInt(string(t), 2, 64)
 		if err1 != nil {
 			err = err1
-			return parseValue, errors.New("strconv.ParseInt 转换失败")
+			return parseValue, errors.New(addr.MetricName + "strconv.ParseInt 转换失败")
 		}
 		v = float64(ti)
 	} else {
