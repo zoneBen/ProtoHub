@@ -153,16 +153,15 @@ func (p *ACProtocol) Send(transport core.Transport, sendBuf []byte, dev *modu.EP
 	go func() {
 		var received []byte
 		for {
+			time.Sleep(10 * time.Millisecond)
 			// 读取数据
-			data, err := transport.Read()
-			if err != nil {
-				errChan <- err
-				return
-			}
-			received = append(received, data...)
-			if len(received) > 0 && received[len(received)-1] == p.EOI {
-				resultChan <- received
-				return
+			data, _ := transport.Read()
+			if len(data) > 1 {
+				received = append(received, data...)
+				if len(received) > 0 && received[len(received)-1] == p.EOI {
+					resultChan <- received
+					return
+				}
 			}
 		}
 	}()
