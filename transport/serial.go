@@ -2,9 +2,9 @@ package transport
 
 import (
 	"errors"
+	serial "github.com/tarm/goserial"
+	"io"
 	"time"
-
-	"github.com/tarm/serial"
 )
 
 type SerialConfig struct {
@@ -18,7 +18,7 @@ type SerialConfig struct {
 
 type SerialTransport struct {
 	config *SerialConfig
-	port   *serial.Port
+	port   io.ReadWriteCloser
 }
 
 func NewSerialTransport(config *SerialConfig) *SerialTransport {
@@ -29,16 +29,13 @@ func (s *SerialTransport) Connect() error {
 	c := &serial.Config{
 		Name:        s.config.PortName,
 		Baud:        s.config.BaudRate,
-		Size:        byte(s.config.DataBits),
-		StopBits:    serial.StopBits(s.config.StopBits),
-		Parity:      serial.Parity(s.config.Parity),
 		ReadTimeout: time.Duration(s.config.ReadTimeout),
 	}
-	port, err := serial.OpenPort(c)
+	var err error
+	s.port, err = serial.OpenPort(c)
 	if err != nil {
 		return err
 	}
-	s.port = port
 	return nil
 }
 
