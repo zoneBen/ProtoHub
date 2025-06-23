@@ -46,3 +46,33 @@ func BytesToBinaryString(bs []byte) string {
 	//buf[bl-1] = rsb
 	return string(buf)
 }
+
+func parseSignMagnitude(b byte) int8 {
+	// 提取符号位（最高位）
+	signBit := (b >> 7) & 1 // 0 或 1
+
+	// 提取数值部分（低7位）
+	magnitude := b & 0x7F // 取低7位
+
+	// 转换为有符号整数
+	if signBit == 1 {
+		return -int8(magnitude)
+	}
+	return int8(magnitude)
+}
+
+func parseSignMagnitude16(data [2]byte) int16 {
+	// 合并两个字节为一个 uint16
+	val := uint16(data[0])<<8 | uint16(data[1])
+
+	// 提取符号位
+	signBit := (val >> 15) & 1
+
+	// 提取数值部分（低15位）
+	magnitude := val & 0x7FFF
+
+	if signBit == 1 {
+		return -int16(magnitude)
+	}
+	return int16(magnitude)
+}

@@ -41,6 +41,17 @@ func (p *HexParser) Parse(buf []byte, dev *modu.EParser, addr modu.EAddr) (modu.
 			return parseValue, errors.New(addr.MetricName + "strconv.ParseInt 转换失败")
 		}
 		v = float64(ti)
+	} else if addr.DataType == "SIGN" {
+		if len(bytes) == 1 {
+			v = float64(parseSignMagnitude(bytes[0]))
+		} else if len(bytes) == 2 {
+			var vt [2]byte
+			vt[0] = bytes[0]
+			vt[1] = bytes[1]
+			v = float64(parseSignMagnitude16(vt))
+		} else {
+			return parseValue, errors.New("暂未实现，数值表示法长度大于2的数据。")
+		}
 	} else {
 		v = convertToFloat(bytes, addr.DataType, addr.ByteOrder)
 	}
