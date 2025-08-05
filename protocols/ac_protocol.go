@@ -89,7 +89,7 @@ func getBytes(s string) ([]byte, error) {
 
 // buildFrame 构建协议帧
 func buildFrame(soi byte, ver byte, adr byte, cid1 byte, cid2 byte, info []byte, eoi byte) ([]byte, error) {
-	lenID := uint16(len(info))
+	lenID := uint16(len(info) * 2)
 	seg1 := (lenID >> 8) & 0x0F
 	seg2 := (lenID >> 4) & 0x0F
 	seg3 := lenID & 0x0F
