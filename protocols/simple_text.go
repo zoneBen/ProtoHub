@@ -1,6 +1,8 @@
 package protocols
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"github.com/zoneBen/ProtoHub/core"
 	"github.com/zoneBen/ProtoHub/modu"
@@ -46,44 +48,61 @@ func (p *SimpleTextProtocol) GenerateKey(dev *modu.EParser, addr modu.EAddr) str
 func (p *SimpleTextProtocol) Send(transport core.Transport, sendBuf []byte, dev *modu.EParser) ([]byte, error) {
 	err := transport.Connect()
 	if err != nil {
-		log.Println("SimpleTextProtocol Send err", err)
+		log.Println("SimpleTextProtocol Send connect err:", err)
 		return nil, err
 	}
-	defer transport.Close()
-	err = transport.Write(sendBuf)
-	if err != nil {
-		return nil, err
-	}
-	var endFlag byte
-	endFlag = 0x0D
-	timeout := 1 * time.Second
-	timeoutChan := time.After(timeout)
-	resultChan := make(chan []byte)
-	errChan := make(chan error)
-	go func() {
-		var received []byte
-		for {
-			time.Sleep(10 * time.Millisecond)
-			// 读取数据
-			data, _ := transport.Read()
-			if len(data) > 1 {
-				received = append(received, data...)
-				if len(received) > 0 && (received[len(received)-1] == endFlag || received[len(received)-1] == 0x0A) {
-					resultChan <- received
-					return
-				}
-			}
+	defer func() {
+		if closeErr := transport.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close transport: %v", closeErr)
 		}
 	}()
 
-	select {
-	case <-timeoutChan:
-		return nil, fmt.Errorf("读取超时，超时时间：%v", timeout)
-	case result := <-resultChan:
-		return result, nil
-	case err := <-errChan:
-		return nil, err
+	err = transport.Write(sendBuf)
+	if err != nil {
+		return nil, fmt.Errorf("write failed: %w", err)
 	}
+
+	var endFlag1, endFlag2 byte = 0x0D, 0x0A // \r and \n
+	timeout := 1 * time.Second
+	endTime := time.Now().Add(timeout)
+	var received []byte
+
+	for time.Now().Before(endTime) {
+		remaining := time.Until(endTime)
+		if remaining <= 0 {
+			break
+		}
+
+		// 设置本次读取的最大等待时间（例如 100ms，避免单次阻塞太久）
+		readTimeout := 100 * time.Millisecond
+		if remaining < readTimeout {
+			readTimeout = remaining
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), readTimeout)
+		data, err := transport.ReadWithContext(ctx)
+		cancel()
+
+		if err != nil {
+			// 如果是 context 超时，继续下一轮
+			if errors.Is(err, context.DeadlineExceeded) {
+				continue
+			}
+			// 其他错误（如连接断开）
+			return nil, fmt.Errorf("read error: %w", err)
+		}
+
+		if len(data) > 0 {
+			received = append(received, data...)
+			// 检查最后一个字节是否为结束符
+			last := received[len(received)-1]
+			if last == endFlag1 || last == endFlag2 {
+				return received, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("read timeout after %v", timeout)
 }
 
 // GetCommandAddrs 获取命令对应的测点
