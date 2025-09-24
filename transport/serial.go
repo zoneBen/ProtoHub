@@ -107,6 +107,7 @@ func (s *SerialTransport) Connect() error {
 	}
 
 	s.port = port
+	s.closed = false
 	return nil
 }
 
