@@ -1,6 +1,7 @@
 package protocols
 
 import (
+	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -142,38 +143,38 @@ func (p *ACProtocol) Send(transport core.Transport, sendBuf []byte, dev *modu.EP
 		return nil, err
 	}
 	defer transport.Close()
+
 	err = transport.Write(sendBuf)
 	if err != nil {
 		return nil, err
 	}
+
 	timeout := 1 * time.Second
-	timeoutChan := time.After(timeout)
-	resultChan := make(chan []byte)
-	errChan := make(chan error)
-	go func() {
-		var received []byte
-		for {
-			time.Sleep(10 * time.Millisecond)
-			// 读取数据
-			data, _ := transport.Read()
-			if len(data) > 1 {
-				received = append(received, data...)
-				if len(received) > 0 && received[len(received)-1] == p.EOI {
-					resultChan <- received
-					return
-				}
+	endTime := time.Now().Add(timeout)
+	var received []byte
+
+	for time.Now().Before(endTime) {
+		// 每次读取最多等待 50ms（小于总 timeout）
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		data, err := transport.ReadWithContext(ctx)
+		cancel()
+
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				continue
+			}
+			return nil, err
+		}
+
+		if len(data) > 0 {
+			received = append(received, data...)
+			if received[len(received)-1] == p.EOI {
+				return received, nil
 			}
 		}
-	}()
-
-	select {
-	case <-timeoutChan:
-		return nil, fmt.Errorf("读取超时，超时时间：%v", timeout)
-	case result := <-resultChan:
-		return result, nil
-	case err := <-errChan:
-		return nil, err
 	}
+
+	return nil, fmt.Errorf("读取超时，超时时间：%v", timeout)
 }
 
 // GetCommandAddrs 获取命令对应的测点

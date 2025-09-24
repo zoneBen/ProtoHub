@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"context"
 	"errors"
 	"net"
 	"time"
@@ -58,6 +59,44 @@ func (t *TCPTransport) Read() ([]byte, error) {
 		}
 		return nil, err
 	}
+	return buf[:n], nil
+}
+
+func (t *TCPTransport) ReadWithContext(ctx context.Context) ([]byte, error) {
+	if t.conn == nil {
+		return nil, errors.New("tcp connection not established")
+	}
+
+	// 获取 context 的 deadline
+	deadline, ok := ctx.Deadline()
+	if ok {
+		// 设置读取截止时间为 context 的 deadline
+		if err := t.conn.SetReadDeadline(deadline); err != nil {
+			return nil, err
+		}
+	} else {
+		// 如果 context 没有 deadline，使用默认超时（避免无限阻塞）
+		if err := t.conn.SetReadDeadline(time.Now().Add(t.config.Timeout)); err != nil {
+			return nil, err
+		}
+	}
+
+	buf := make([]byte, 1024)
+	n, err := t.conn.Read(buf)
+	if err != nil {
+		// 检查是否是超时错误
+		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+			// 判断是 context 超时还是默认超时
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err() // 被 context 取消
+			default:
+				return nil, errors.New("read timeout")
+			}
+		}
+		return nil, err
+	}
+
 	return buf[:n], nil
 }
 
