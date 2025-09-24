@@ -61,10 +61,6 @@ func (s *SerialTransport) Connect() error {
 	if s.port != nil {
 		return errors.New("already connected")
 	}
-	if s.closed {
-		return ErrClosed
-	}
-
 	// Step 1: Open with default settings
 	port, err := serial.Open(s.config.PortName)
 	if err != nil {
