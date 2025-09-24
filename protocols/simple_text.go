@@ -74,7 +74,7 @@ func (p *SimpleTextProtocol) Send(transport core.Transport, sendBuf []byte, dev 
 		}
 
 		// 设置本次读取的最大等待时间（例如 100ms，避免单次阻塞太久）
-		readTimeout := 100 * time.Millisecond
+		readTimeout := 200 * time.Millisecond
 		if remaining < readTimeout {
 			readTimeout = remaining
 		}

@@ -155,7 +155,7 @@ func (p *ACProtocol) Send(transport core.Transport, sendBuf []byte, dev *modu.EP
 
 	for time.Now().Before(endTime) {
 		// 每次读取最多等待 50ms（小于总 timeout）
-		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 		data, err := transport.ReadWithContext(ctx)
 		cancel()
 
