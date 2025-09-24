@@ -44,9 +44,10 @@ func NewSerialTransport(config *SerialConfig) *SerialTransport {
 	if config.Parity == "" {
 		config.Parity = "N"
 	}
-	if config.ReadTimeout == 0 {
-		config.ReadTimeout = 1000
-	}
+	//if config.ReadTimeout == 0 {
+	//	config.ReadTimeout = 50
+	//}
+	config.ReadTimeout = 50
 	if config.WriteTimeout == 0 {
 		config.WriteTimeout = 1000
 	}

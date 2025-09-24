@@ -148,7 +148,7 @@ func (p *ACProtocol) Send(transport core.Transport, sendBuf []byte, dev *modu.EP
 	if err != nil {
 		return nil, err
 	}
-
+	time.Sleep(10 * time.Millisecond)
 	timeout := 1 * time.Second
 	endTime := time.Now().Add(timeout)
 	var received []byte
