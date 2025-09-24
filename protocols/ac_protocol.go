@@ -139,42 +139,58 @@ func Uint16ToBytes(n uint16, littleEndian bool) []byte {
 func (p *ACProtocol) Send(transport core.Transport, sendBuf []byte, dev *modu.EParser) ([]byte, error) {
 	err := transport.Connect()
 	if err != nil {
-		log.Println("ACProtocol Send err", err)
+		log.Println("ACProtocol Send connect err:", err)
 		return nil, err
 	}
 	defer transport.Close()
 
 	err = transport.Write(sendBuf)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("write failed: %w", err)
 	}
-	time.Sleep(10 * time.Millisecond)
-	timeout := 1 * time.Second
-	endTime := time.Now().Add(timeout)
+
+	// ⬇️ 关键：总超时设为 3 秒（足够设备响应 + 发送完整帧）
+	totalTimeout := 3 * time.Second
+	endTime := time.Now().Add(totalTimeout)
 	var received []byte
 
 	for time.Now().Before(endTime) {
-		// 每次读取最多等待 50ms（小于总 timeout）
-		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+		// 每次读取最多等待 200ms（应 >= 串口 ReadTimeout）
+		remaining := time.Until(endTime)
+		if remaining <= 0 {
+			break
+		}
+		readTimeout := 200 * time.Millisecond
+		if remaining < readTimeout {
+			readTimeout = remaining
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), readTimeout)
 		data, err := transport.ReadWithContext(ctx)
 		cancel()
 
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
+				// 本次读取超时，但总时间还没到，继续等
 				continue
 			}
-			return nil, err
+			return nil, fmt.Errorf("read error: %w", err)
 		}
 
 		if len(data) > 0 {
 			received = append(received, data...)
+			// 🔍 严格检查：只要 buffer 中最后一个字节是 EOI，就认为帧完整
 			if received[len(received)-1] == p.EOI {
-				return received, nil
+				return received, nil // ✅ 完整帧，立即返回
 			}
 		}
 	}
 
-	return nil, fmt.Errorf("读取超时，超时时间：%v", timeout)
+	// 总超时到了，但没等到 EOI
+	if len(received) > 0 {
+		log.Printf("Warning: response missing EOI (0x%02X). Got: % X", p.EOI, received)
+	}
+	return nil, fmt.Errorf("timeout waiting for EOI (0x%02X) after %v", p.EOI, totalTimeout)
 }
 
 // GetCommandAddrs 获取命令对应的测点
