@@ -14,6 +14,19 @@ import (
 
 type SimpleTextProtocol struct{}
 
+// equalBytes 比较两个字节切片是否相等
+func equalBytes(a, b []byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func replacementSpecialCharacters(oldVal string) (val string) {
 	val = strings.Replace(oldVal, "空格", " ", -1)
 	val = strings.Replace(oldVal, "\\r", "\r", -1)
@@ -62,7 +75,14 @@ func (p *SimpleTextProtocol) Send(transport core.Transport, sendBuf []byte, dev 
 		return nil, fmt.Errorf("write failed: %w", err)
 	}
 
-	var endFlag1, endFlag2 byte = 0x0D, 0x0A // \r and \n
+	// 使用配置的接收后缀作为结束标志，默认为 \r\n
+	var endMarker []byte
+	if dev.Dev.RevSuf != "" {
+		endMarker = []byte(replacementSpecialCharacters(dev.Dev.RevSuf))
+	} else {
+		endMarker = []byte("\r\n")
+	}
+
 	timeout := 1 * time.Second
 	endTime := time.Now().Add(timeout)
 	var received []byte
@@ -74,7 +94,7 @@ func (p *SimpleTextProtocol) Send(transport core.Transport, sendBuf []byte, dev 
 		}
 
 		// 设置本次读取的最大等待时间（例如 100ms，避免单次阻塞太久）
-		readTimeout := 200 * time.Millisecond
+		readTimeout := 500 * time.Millisecond
 		if remaining < readTimeout {
 			readTimeout = remaining
 		}
@@ -94,14 +114,20 @@ func (p *SimpleTextProtocol) Send(transport core.Transport, sendBuf []byte, dev 
 
 		if len(data) > 0 {
 			received = append(received, data...)
-			// 检查最后一个字节是否为结束符
-			last := received[len(received)-1]
-			if last == endFlag1 || last == endFlag2 {
-				return received, nil
+			// 检查接收到的数据末尾是否包含完整的结束序列
+			if len(received) >= len(endMarker) {
+				suffix := received[len(received)-len(endMarker):]
+				if equalBytes(suffix, endMarker) {
+					return received, nil
+				}
 			}
 		}
 	}
 
+	// 超时但有数据时返回已接收的数据
+	if len(received) > 0 {
+		return received, nil
+	}
 	return nil, fmt.Errorf("read timeout after %v", timeout)
 }
 
