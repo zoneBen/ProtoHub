@@ -189,25 +189,13 @@ func (s *SerialTransport) ReadWithContext(ctx context.Context) ([]byte, error) {
 	ch := make(chan result, 1)
 
 	go func() {
-		totalBuf := make([]byte, 0)
 		buf := make([]byte, 1024)
-
-		// 循环读取直到超时或无数据
-		for {
-			n, err := port.Read(buf)
-			if n > 0 {
-				totalBuf = append(totalBuf, buf[:n]...)
-			}
-			if err != nil || n == 0 {
-				break
-			}
+		n, err := port.Read(buf)
+		if err != nil {
+			ch <- result{nil, err}
+			return
 		}
-
-		if len(totalBuf) > 0 {
-			ch <- result{totalBuf, nil}
-		} else {
-			ch <- result{nil, errors.New("no data received")}
-		}
+		ch <- result{buf[:n], nil}
 	}()
 
 	select {
