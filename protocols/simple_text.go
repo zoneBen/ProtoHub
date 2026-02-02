@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/zoneBen/ProtoHub/core"
-	"github.com/zoneBen/ProtoHub/modu"
-	"github.com/zoneBen/ProtoHub/parser"
 	"log"
 	"strings"
 	"time"
+
+	"github.com/zoneBen/ProtoHub/core"
+	"github.com/zoneBen/ProtoHub/modu"
+	"github.com/zoneBen/ProtoHub/parser"
 )
 
 type SimpleTextProtocol struct{}

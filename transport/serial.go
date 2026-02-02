@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"sync"
-	"time"
 
 	serial "github.com/albenik/go-serial/v2"
 )
@@ -193,25 +192,22 @@ func (s *SerialTransport) ReadWithContext(ctx context.Context) ([]byte, error) {
 		totalBuf := make([]byte, 0)
 		buf := make([]byte, 1024)
 
-		// 第一次读取
-		n, err := port.Read(buf)
-		if err != nil {
-			ch <- result{nil, err}
-			return
-		}
-		totalBuf = append(totalBuf, buf[:n]...)
-
-		// 等待更多数据到达，最多重试2次
-		for i := 0; i < 3; i++ {
-			time.Sleep(50 * time.Millisecond)
+		// 循环读取直到超时或无数据
+		for {
 			n, err := port.Read(buf)
+			if n > 0 {
+				totalBuf = append(totalBuf, buf[:n]...)
+			}
 			if err != nil || n == 0 {
 				break
 			}
-			totalBuf = append(totalBuf, buf[:n]...)
 		}
 
-		ch <- result{totalBuf, nil}
+		if len(totalBuf) > 0 {
+			ch <- result{totalBuf, nil}
+		} else {
+			ch <- result{nil, errors.New("no data received")}
+		}
 	}()
 
 	select {
