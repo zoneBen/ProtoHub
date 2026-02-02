@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"sync"
-	"time"
 
 	serial "github.com/albenik/go-serial/v2"
 )
@@ -146,33 +145,28 @@ func (s *SerialTransport) Read() ([]byte, error) {
 	}
 
 	totalBuf := make([]byte, 0)
+	buf := make([]byte, 1024)
+
+	// 第一次读取
+	n, err := s.port.Read(buf)
+	if err != nil {
+		if errors.Is(err, io.EOF) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("serial read failed: %w", err)
+	}
+	totalBuf = append(totalBuf, buf[:n]...)
+
+	// 继续尝试读取更多数据
 	for {
-		buf := make([]byte, 1024)
 		n, err := s.port.Read(buf)
-		if err != nil {
-			if errors.Is(err, io.EOF) && len(totalBuf) > 0 {
-				// 已经有数据且遇到EOF，则返回已有数据
-				return totalBuf, nil
-			}
-			if errors.Is(err, io.EOF) {
-				return totalBuf, nil
-			}
-			return totalBuf, fmt.Errorf("serial read failed: %w", err)
+		if err != nil || n == 0 {
+			break
 		}
 		totalBuf = append(totalBuf, buf[:n]...)
-
-		// 尝试读取更多数据，如果在指定时间内没有更多数据则返回
-		timer := time.NewTimer(10 * time.Millisecond)
-		select {
-		case <-timer.C: // 等待10毫秒，如果没有新数据则返回
-			timer.Stop()
-			return totalBuf, nil
-		default:
-			// 继续循环读取
-			timer.Stop()
-			continue
-		}
 	}
+
+	return totalBuf, nil
 }
 
 // ReadWithContext 支持 context 超时
@@ -196,32 +190,26 @@ func (s *SerialTransport) ReadWithContext(ctx context.Context) ([]byte, error) {
 
 	go func() {
 		totalBuf := make([]byte, 0)
+		buf := make([]byte, 1024)
+
+		// 第一次读取
+		n, err := port.Read(buf)
+		if err != nil {
+			ch <- result{nil, err}
+			return
+		}
+		totalBuf = append(totalBuf, buf[:n]...)
+
+		// 继续尝试读取更多数据，直到超时或无数据
 		for {
-			buf := make([]byte, 1024)
 			n, err := port.Read(buf)
-			if err != nil {
-				if errors.Is(err, io.EOF) && len(totalBuf) > 0 {
-					// 已经有数据且遇到EOF，则返回已有数据
-					ch <- result{totalBuf, nil}
-					return
-				}
-				ch <- result{totalBuf, err}
-				return
+			if err != nil || n == 0 {
+				break
 			}
 			totalBuf = append(totalBuf, buf[:n]...)
-
-			// 尝试读取更多数据，如果在指定时间内没有更多数据则返回
-			timer := time.NewTimer(10 * time.Millisecond)
-			select {
-			case <-timer.C: // 等待10毫秒，如果没有新数据则返回
-				ch <- result{totalBuf, nil}
-				return
-			default:
-				// 继续循环读取
-				timer.Stop()
-				continue
-			}
 		}
+
+		ch <- result{totalBuf, nil}
 	}()
 
 	select {
