@@ -75,12 +75,12 @@ func (p *SimpleTextProtocol) Send(transport core.Transport, sendBuf []byte, dev 
 		return nil, fmt.Errorf("write failed: %w", err)
 	}
 
-	// 使用配置的接收后缀作为结束标志，默认为 \r\n
+	// 使用配置的接收后缀作为结束标志，默认为 \n
 	var endMarker []byte
 	if dev.Dev.RevSuf != "" {
 		endMarker = []byte(replacementSpecialCharacters(dev.Dev.RevSuf))
 	} else {
-		endMarker = []byte("\r\n")
+		endMarker = []byte("\n")
 	}
 
 	timeout := 1 * time.Second
